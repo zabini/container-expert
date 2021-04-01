@@ -34,7 +34,7 @@ df -h # lista os devices de armazenamento montados no container
 # tmpfs           3.8G     0  3.8G   0% /sys/firmware
 ```
 
-## Volume
+### Volume
 
 ```bash
 docker volume ls # lista os volumes existentes
@@ -61,4 +61,74 @@ docker volume rm [VOLUME NAME]  # Remove o volume. Porém caso tenha algum conta
                                 # parado que utiliza este volume a remoção do volume falhará.
                                 # A remoção de uma container expurga completamenta as informações
                                 # Isso é apaga os dados da pasta: [/var/lib/docker/volumes]
+```
+
+## Prune
+
+```bash
+docker volume prune # Remove os volumes que não são utilizados por pelo menos um container
+```
+
+## Data-only container
+
+Compartilhamento de volumes entre containeres, parametro = [--volumes-from]
+
+```bash
+docker container create -v /data --name dbdados centos # Cria um container 
+
+docker container run -d \
+  -p 5432:5432 --name pgsql1 --volumes-from dbdados \
+  -e POSTGRESQL_USER=docker \
+  -e POSTGRESQL_PASS=docker \
+  -e POSTGRESQL_DB=docker kamui/postgresql
+
+docker container run -d \
+  -p 5433:5432 --name pgsql2 --volumes-from dbdados \
+  -e POSTGRESQL_USER=docker \
+  -e POSTGRESQL_PASS=docker \
+  -e POSTGRESQL_DB=docker kamui/postgresql
+```
+
+# Desafio
+
+```bash
+docker volume create dbdados # Criação do volume nomeado como dbdados
+docker volume inspect dbdados
+# [
+#     {
+#         "CreatedAt": "2021-04-01T01:58:10-03:00",
+#         "Driver": "local",
+#         "Labels": {},
+#         "Mountpoint": "/var/lib/docker/volumes/dbdados/_data",
+#         "Name": "dbdados",
+#         "Options": {},
+#         "Scope": "local"
+#     }
+# ]
+
+docker container run -d \
+  --mount type=volume,src=dbdados,dst=/data \
+  -p 5432:5432 --name pgsql1 \
+  -e POSTGRESQL_USER=docker \
+  -e POSTGRESQL_PASS=docker \
+  -e POSTGRESQL_DB=docker kamui/postgresql
+
+docker container run -d \
+  --mount type=volume,src=dbdados,dst=/data \
+  -p 5433:5432 --name pgsql2 \
+  -e POSTGRESQL_USER=docker \
+  -e POSTGRESQL_PASS=docker \
+  -e POSTGRESQL_DB=docker kamui/postgresql
+```
+
+# Backup
+
+```bash
+
+mkdir /opt/backup # Cria um diretório para armazenar os backups
+
+docker container run -ti \
+  --mount type=volume,src=dbdados,dst=/data \
+  --mount type=bind,src=/opt/backup,dst=/backup \
+  debian tar -cvf /backup/bkp-banco.tar /data # Cria um container para executar o backup de um volume
 ```
